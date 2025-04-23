@@ -1,22 +1,22 @@
 import os
+import sys
 import shutil
 from markdown_blocks import markdown_to_html_node
 
-dir_path_public = "./public/"
+dir_path_public = "./docs/"
 dir_path_static = "./static/"
 dir_path_template = "./template.html"
 dir_path_content = "./content/"
 
 def main():
+
+    basepath = "/" if len(sys.argv) <= 1 else sys.argv[1]
+
     clear_directory(dir_path_public)
     copy_tree(dir_path_static, dir_path_public)
 
-    generate_pages_rec(dir_path_content, dir_path_template, dir_path_public)
-    # generate_page("./content/index.md", dir_path_template, "./public/index.html")
-    # generate_page("./content/blog/glorfindel/index.md.md", dir_path_template, "./public/index.html")
-    # generate_page("./content/blog/tom/index.md", dir_path_template, "./public/index.html")
-    # generate_page("./content/blog/majesty/index.md", dir_path_template, "./public/index.html")
-    # generate_page("./content/contact/index.md", dir_path_template, "./public/index.html")
+    generate_pages_rec(dir_path_content, dir_path_template, dir_path_public, basepath)
+
 
 
 def clear_directory(path: str):
@@ -53,19 +53,19 @@ def extract_title(markdown: str) -> str:
             return line[2:].strip()
     raise Exception("no title found")
 
-def generate_pages_rec(content_path: str, template_path: str, dst_path: str):
+def generate_pages_rec(content_path: str, template_path: str, dst_path: str, basepath: str):
     for filename in os.listdir(content_path):
         src = os.path.join(content_path, filename)
         dst = os.path.join(dst_path, filename)
         if filename.endswith(".md") and os.path.isfile(src):
             dst = dst.rstrip(".md") + ".html"
-            generate_page(src, template_path, dst)
+            generate_page(src, template_path, dst, basepath)
         elif os.path.isdir(src):
             os.mkdir(dst)
-            generate_pages_rec(src, template_path, dst)
+            generate_pages_rec(src, template_path, dst, basepath)
 
 
-def generate_page(src_path: str, template_path: str, dst_path: str):
+def generate_page(src_path: str, template_path: str, dst_path: str, basepath: str):
     print(f"Generating page from {src_path} to {dst_path} using {template_path}")
 
     with open(src_path, "r") as f:
@@ -76,7 +76,12 @@ def generate_page(src_path: str, template_path: str, dst_path: str):
 
     title = extract_title(markdown)
     content = markdown_to_html_node(markdown).to_html()
-    generated = template.replace("{{ Title }}", title).replace("{{ Content }}", content)
+    # content replacements
+    generated = template.replace("{{ Title }}", title)
+    generated = generated.replace("{{ Content }}", content)
+    # link replacements
+    generated = generated.replace('href="/', f'href="{basepath}')
+    generated = generated.replace('src="/', f'src="{basepath}')
 
     with open(dst_path, "w") as f:
         f.write(generated)
